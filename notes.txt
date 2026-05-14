@@ -1,5 +1,5 @@
 install fastapi // uv add "fastapi[standard]"
-includes uvicorn, cli comand
+includes uvicorn, cli comand, Jinja2 for template
 
 to run fastpi // uv run fastapi dev main.py
 dev mode include autorreload and debug
@@ -9,3 +9,5 @@ fastapi has two docs
 /redoc
 
 adding the parameter include_in_schema=False, make fastapi not show the route on docs, but is still available if you access it
+
+setup Jinja template and static files
