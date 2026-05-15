@@ -11,3 +11,16 @@ fastapi has two docs
 adding the parameter include_in_schema=False, make fastapi not show the route on docs, but is still available if you access it
 
 setup Jinja template and static files
+
+path parameter = parameters that are passed through url
+
+--
+
+pydantic is builtin in fastapi, no needing to install
+for schemas data validation
+
+create schemas.py
+
+adding response_model=list[PostResponse] on route, makes the fastpi validate based on schema created on pydantic
+
+in docs, will see the validations required for each route using pydantic
