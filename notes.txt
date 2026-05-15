@@ -13,3 +13,5 @@ adding the parameter include_in_schema=False, make fastapi not show the route on
 setup Jinja template and static files
 
 path parameter = parameters that are passed through url
+
+using error handling and fixing routing
