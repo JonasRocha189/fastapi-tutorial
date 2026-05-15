@@ -11,3 +11,5 @@ fastapi has two docs
 adding the parameter include_in_schema=False, make fastapi not show the route on docs, but is still available if you access it
 
 setup Jinja template and static files
+
+path parameter = parameters that are passed through url
