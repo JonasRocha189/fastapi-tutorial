@@ -26,3 +26,4 @@ create schemas.py
 adding response_model=list[PostResponse] on route, makes the fastpi validate based on schema created on pydantic
 
 in docs, will see the validations required for each route using pydantic
+
