@@ -15,3 +15,14 @@ setup Jinja template and static files
 path parameter = parameters that are passed through url
 
 using error handling and fixing routing
+
+--
+
+pydantic is builtin in fastapi, no needing to install
+for schemas data validation
+
+create schemas.py
+
+adding response_model=list[PostResponse] on route, makes the fastpi validate based on schema created on pydantic
+
+in docs, will see the validations required for each route using pydantic
