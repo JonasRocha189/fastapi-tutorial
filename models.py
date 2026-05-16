@@ -21,7 +21,7 @@ class User(Base):
     )
 
     # One-to-many relationship: A user can have multiple posts, but each post has only one author
-    posts: Mapped[list[Post]] = relationship(back_populates="author")
+    posts: Mapped[list[Post]] = relationship(back_populates="author", cascade="all, delete-orphan")
 
     @property
     def image_path(self) -> str:

@@ -1,5 +1,5 @@
 install fastapi // uv add "fastapi[standard]"
-includes uvicorn, cli comand, Jinja2 for template
+includes uvicorn, cli command, Jinja2 for template
 
 to run fastpi // uv run fastapi dev main.py
 dev mode include autorreload and debug
@@ -40,3 +40,20 @@ is important to create session to use database
 
 models
 set relationship
+
+
+---
+
+Put // usually updates the entire content
+patch // usually updates a part of the content
+obs: In practice just uses the patch (partial)
+
+Delete: usually returns 204
+
+Status code 
+200 - ok // GET, PUT or PATCH
+201 - Created // Successful POST for users and posts
+204 - No Content // Successful DELETE
+400 - Bad Request // Duplicate username/email when creating user 
+404 - Not Found // Resource doesn't exists (user or post)
+422 - Unprocessable Entity // Validation error (automatic from Pydantic)
