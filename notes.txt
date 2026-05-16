@@ -69,3 +69,11 @@ update database configurations
 import contextlib in main 
 
 uv add greenlet
+
+---
+
+Routers
+
+create a folder and the modules for the router
+
+router concatenate the path
