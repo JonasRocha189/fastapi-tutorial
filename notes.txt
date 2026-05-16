@@ -27,3 +27,16 @@ adding response_model=list[PostResponse] on route, makes the fastpi validate bas
 
 in docs, will see the validations required for each route using pydantic
 
+
+---
+
+add sqlalchemy
+
+will use sqlite initially
+
+create database.py
+
+is important to create session to use database
+
+models
+set relationship
