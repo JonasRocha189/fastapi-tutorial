@@ -4,16 +4,17 @@ A modern RESTful Blog API built with FastAPI and Pydantic, designed with clean a
 
 ---
 
-Tools used
+## Tools used
 - FastAPI
 - Pydantic
 - uv
 - Jinja templates
+- Async
 
 
 ---
 
-To run the project
+## To run the project
 
 ` uv pip -r install requirements.txt `
 

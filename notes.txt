@@ -57,3 +57,15 @@ Status code
 400 - Bad Request // Duplicate username/email when creating user 
 404 - Not Found // Resource doesn't exists (user or post)
 422 - Unprocessable Entity // Validation error (automatic from Pydantic)
+
+
+---
+
+async
+
+uv add aiosqlite // to turn database into async
+update database configurations
+
+import contextlib in main 
+
+uv add greenlet
