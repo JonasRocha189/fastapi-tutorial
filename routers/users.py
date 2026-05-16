@@ -12,6 +12,7 @@ from schemas import PostResponse, UserCreate, UserResponse, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
+# Get all users
 @router.post(
     "",
     response_model=UserResponse,
@@ -48,7 +49,7 @@ async def create_user(user: UserCreate, db: Annotated[AsyncSession, Depends(get_
   return new_user
 
 
-
+# Get the details of a specific user, including their posts
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(user_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
   result = await db.execute(select(models.User).where(models.User.id == user_id))
@@ -58,7 +59,7 @@ async def get_user(user_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
   raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
 
-
+# Get all posts by a specific user
 @router.get("/{user_id}/posts", response_model=list[PostResponse])
 async def get_user_posts(user_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
   result = await db.execute(select(models.User).where(models.User.id == user_id))
@@ -71,12 +72,13 @@ async def get_user_posts(user_id: int, db: Annotated[AsyncSession, Depends(get_d
   result = await db.execute(
     select(models.Post)
     .options(selectinload(models.Post.author))
-    .where(models.Post.user_id == user_id),
+    .where(models.Post.user_id == user_id).order_by(models.Post.date_posted.desc()),
   )
   posts = result.scalars().all()
   return posts
 
 
+# Update a user's information
 @router.patch("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: int,
@@ -123,6 +125,7 @@ async def update_user(
   return user
 
 
+# Delete a user and all their posts
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(user_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
   result = await db.execute(select(models.User).where(models.User.id == user_id))
