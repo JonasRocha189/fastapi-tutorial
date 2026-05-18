@@ -94,3 +94,5 @@ is better delete the database for now, since still does not have migrations
 
 Generates e token key from terminal
 python -c "import secrets; print(secrets.token_hex(32))"
+
+the schema CurrentUser check if the user is logged in  
