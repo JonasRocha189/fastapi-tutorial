@@ -77,3 +77,20 @@ Routers
 create a folder and the modules for the router
 
 router concatenate the path
+
+___
+
+authentication = who are you?
+authorization - what are you allowed to do?
+
+install 
+"pwdlib[argon2]" // better than bcrypt
+pyjwt // for authentication
+pydantic-settings // for managing configurations
+
+uv add "pwdlib[argon2]" pyjwt pydantic-settings
+
+is better delete the database for now, since still does not have migrations
+
+Generates e token key from terminal
+python -c "import secrets; print(secrets.token_hex(32))"

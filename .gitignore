@@ -6,6 +6,12 @@ dist/
 wheels/
 *.egg-info
 
+### dotenv files ###
+.env
+
+# Databases
+.db
+
 # Virtual environments
 .venv
 
