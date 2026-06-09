@@ -106,3 +106,12 @@ uv add pillow
 create image_utils.py
 
 tip: for small project, creating a folder to store images works good, but ideally is better working with S3 or other cloud storage 
+
+
+-----
+
+pagination
+
+create a new pydantic contract for pagination
+
+obs: fastapi has a package that handles pagination
