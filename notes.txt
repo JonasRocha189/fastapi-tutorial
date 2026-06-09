@@ -96,3 +96,13 @@ Generates e token key from terminal
 python -c "import secrets; print(secrets.token_hex(32))"
 
 the schema CurrentUser check if the user is logged in  
+
+
+----
+
+File upload 
+uv add pillow
+
+create image_utils.py
+
+tip: for small project, creating a folder to store images works good, but ideally is better working with S3 or other cloud storage 
