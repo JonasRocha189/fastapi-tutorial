@@ -1,9 +1,11 @@
+from datetime import timedelta, UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, Query
 from sqlalchemy import select, func
+from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
 
 from PIL import UnidentifiedImageError
 from starlette.concurrency import run_in_threadpool
@@ -11,16 +13,44 @@ from image_utils import process_profile_image, delete_profile_image
 
 import models
 from database import get_db
-from schemas import PostResponse, UserCreate, UserUpdate, UserPrivate, Token, UserPublic, PaginatedPostsResponse
+from schemas import (
+    PostResponse,
+    UserCreate,
+    UserUpdate,
+    UserPrivate,
+    Token,
+    UserPublic,
+    PaginatedPostsResponse,
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+)
 
-from datetime import timedelta
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    UploadFile,
+    Query,
+    BackgroundTasks,
+)
 from fastapi.security import OAuth2PasswordRequestForm
-from auth import CurrentUser, create_access_token, hash_password, verify_password
+from auth import (
+    CurrentUser,
+    create_access_token,
+    hash_password,
+    verify_password,
+    generate_reset_token,
+    hash_reset_token,
+)
 from config import settings
 
-
+from email_utils import send_password_reset_email
 
 router = APIRouter()
+
 
 # Get all users
 @router.post(
@@ -29,35 +59,38 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
 )
 async def create_user(user: UserCreate, db: Annotated[AsyncSession, Depends(get_db)]):
-  result = await db.execute(
-    select(models.User).where(func.lower(models.User.username) == user.username.lower()),
-  )
-  existing_user = result.scalars().first()
-  if existing_user:
-    raise HTTPException(
-      status_code=status.HTTP_400_BAD_REQUEST,
-      detail="Username already exists",
+    result = await db.execute(
+        select(models.User).where(
+            func.lower(models.User.username) == user.username.lower()
+        ),
     )
+    existing_user = result.scalars().first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists",
+        )
 
-  result = await db.execute(
-    select(models.User).where(func.lower(models.User.email) == user.email.lower()),
-  )
-  existing_email = result.scalars().first()
-  if existing_email:
-    raise HTTPException(
-      status_code=status.HTTP_400_BAD_REQUEST,
-      detail="Email already registered",
+    result = await db.execute(
+        select(models.User).where(func.lower(models.User.email) == user.email.lower()),
     )
+    existing_email = result.scalars().first()
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
 
-  new_user = models.User(
-    username=user.username,
-    email=user.email.lower(),
-    password_hash=hash_password(user.password)
-  )
-  db.add(new_user)
-  await db.commit()
-  await db.refresh(new_user)
-  return new_user
+    new_user = models.User(
+        username=user.username,
+        email=user.email.lower(),
+        password_hash=hash_password(user.password),
+    )
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return new_user
+
 
 # Login and get an access token
 @router.post("/token", response_model=Token)
@@ -93,18 +126,144 @@ async def login_for_access_token(
 
 
 @router.get("/me", response_model=UserPrivate)
-async def get_current_user(current_user:CurrentUser):
+async def get_current_user(current_user: CurrentUser):
     return current_user
+
+
+## forgot_password endpoint
+@router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
+async def forgot_password(
+    request_data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(
+        select(models.User).where(
+            func.lower(models.User.email) == request_data.email.lower(),
+        ),
+    )
+    user = result.scalars().first()
+
+    if user:
+        await db.execute(
+            sql_delete(models.PasswordResetToken).where(
+                models.PasswordResetToken.user_id == user.id,
+            ),
+        )
+
+        token = generate_reset_token()
+        token_hash = hash_reset_token(token)
+        expires_at = datetime.now(UTC) + timedelta(
+            minutes=settings.reset_token_expire_minutes
+        )
+
+        reset_token = models.PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+        db.add(reset_token)
+        await db.commit()
+
+        background_tasks.add_task(
+            send_password_reset_email,
+            to_email=user.email,
+            username=user.username,
+            token=token,
+        )
+
+    return {
+        "message": "If an account exists with this email, you will receive password reset instructions."
+    }
+
+
+## reset_password endpoint
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(
+    request_data: ResetPasswordRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    token_hash = hash_reset_token(request_data.token)
+
+    result = await db.execute(
+        select(models.PasswordResetToken).where(
+            models.PasswordResetToken.token_hash == token_hash,
+        ),
+    )
+    reset_token = result.scalars().first()
+
+    if not reset_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+
+    if reset_token.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
+        await db.delete(reset_token)
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+
+    result = await db.execute(
+        select(models.User).where(models.User.id == reset_token.user_id),
+    )
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+
+    user.password_hash = hash_password(request_data.new_password)
+
+    await db.execute(
+        sql_delete(models.PasswordResetToken).where(
+            models.PasswordResetToken.user_id == user.id,
+        ),
+    )
+
+    await db.commit()
+    return {
+        "message": "Password reset successfully. You can now log in with your new password."
+    }
+
+
+## change_password endpoint
+@router.patch("/me/password", status_code=status.HTTP_200_OK)
+async def change_password(
+    password_data: ChangePasswordRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    if not verify_password(password_data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+
+    current_user.password_hash = hash_password(password_data.new_password)
+
+    await db.execute(
+        sql_delete(models.PasswordResetToken).where(
+            models.PasswordResetToken.user_id == current_user.id,
+        ),
+    )
+
+    await db.commit()
+    return {"message": "Password changed successfully"}
 
 
 # Get the details of a specific user, including their posts
 @router.get("/{user_id}", response_model=UserPublic)
 async def get_user(user_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
-  result = await db.execute(select(models.User).where(models.User.id == user_id))
-  user = result.scalars().first()
-  if user:
-    return user
-  raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    result = await db.execute(select(models.User).where(models.User.id == user_id))
+    user = result.scalars().first()
+    if user:
+        return user
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
 
 # Get all posts by a specific user
@@ -156,75 +315,95 @@ async def get_user_posts(
 async def update_user(
     user_id: int,
     user_update: UserUpdate,
-    current_user:CurrentUser,
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-  
-  if user_id != current_user.id:
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this user")
-  
-  result = await db.execute(select(models.User).where(models.User.id == user_id))
-  user = result.scalars().first()
-  if not user:
-    raise HTTPException(
-      status_code=status.HTTP_404_NOT_FOUND,
-      detail="User not found",
-    )
-  if user_update.username is not None and user_update.username.lower() != user.username.lower():
-    result = await db.execute(
-      select(models.User).where(func.lower(models.User.username) == user_update.username.lower()),
-    )
-    existing_user = result.scalars().first()
-    if existing_user:
-      raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Username already exists",
-      )
-  if user_update.email is not None and user_update.email.lower() != user.email.lower():
-    result = await db.execute(
-      select(models.User).where(func.lower(models.User.email) == user_update.email.lower()),
-    )
-    existing_email = result.scalars().first()
-    if existing_email:
-      raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Email already registered",
-      )
 
-  if user_update.username is not None:
-    user.username = user_update.username
-  if user_update.email is not None:
-    user.email = user_update.email.lower()
+    if user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this user",
+        )
 
-  await db.commit()
-  await db.refresh(user)
-  return user
+    result = await db.execute(select(models.User).where(models.User.id == user_id))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    if (
+        user_update.username is not None
+        and user_update.username.lower() != user.username.lower()
+    ):
+        result = await db.execute(
+            select(models.User).where(
+                func.lower(models.User.username) == user_update.username.lower()
+            ),
+        )
+        existing_user = result.scalars().first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already exists",
+            )
+    if (
+        user_update.email is not None
+        and user_update.email.lower() != user.email.lower()
+    ):
+        result = await db.execute(
+            select(models.User).where(
+                func.lower(models.User.email) == user_update.email.lower()
+            ),
+        )
+        existing_email = result.scalars().first()
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered",
+            )
+
+    if user_update.username is not None:
+        user.username = user_update.username
+    if user_update.email is not None:
+        user.email = user_update.email.lower()
+
+    await db.commit()
+    await db.refresh(user)
+    return user
 
 
 # Delete a user and all their posts
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: int,  current_user:CurrentUser, db: Annotated[AsyncSession, Depends(get_db)]):
-  
-  if user_id != current_user.id:
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this user")
-  
-  result = await db.execute(select(models.User).where(models.User.id == user_id))
-  user = result.scalars().first()
-  if not user:
-    raise HTTPException(
-      status_code=status.HTTP_404_NOT_FOUND,
-      detail="User not found",
-    )
-    
-  old_filename = user.image_file
+async def delete_user(
+    user_id: int,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
 
-  await db.delete(user)
-  await db.commit()
-  
-  if old_filename:
-    delete_profile_image(old_filename)
-  
-  
+    if user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this user",
+        )
+
+    result = await db.execute(select(models.User).where(models.User.id == user_id))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    old_filename = user.image_file
+
+    await db.delete(user)
+    await db.commit()
+
+    if old_filename:
+        delete_profile_image(old_filename)
+
+
 ## Upload Profile Picture Endpoint
 @router.patch("/{user_id}/picture", response_model=UserPrivate)
 async def upload_profile_picture(
@@ -265,8 +444,8 @@ async def upload_profile_picture(
         delete_profile_image(old_filename)
 
     return current_user
-  
-  
+
+
 ## Delete Profile Picture Endpoint
 @router.delete("/{user_id}/picture", response_model=UserPrivate)
 async def delete_user_picture(

@@ -233,7 +233,9 @@ POST_44 = {
 }
 
 
+
 async def clear_existing_data() -> None:
+    
     # Delete profile pictures from local storage
     if PROFILE_PICS_DIR.exists():
         for file in PROFILE_PICS_DIR.iterdir():

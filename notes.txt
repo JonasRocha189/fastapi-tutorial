@@ -115,3 +115,16 @@ pagination
 create a new pydantic contract for pagination
 
 obs: fastapi has a package that handles pagination
+
+----
+
+Password Reset 
+
+- send email in background
+
+uv add aiosmtplib // async lib to send email
+
+create reset token expiration
+
+mailtrap // cloud tool for development mode to use email delivery
+https://mailtrap.io/
