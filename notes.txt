@@ -141,3 +141,29 @@ brew install postgresql@18
 
 psql -U postgres -c "CREATE USER bloguser WITH PASSWORD 'blogpass';"
 createdb -U postgres -O bloguser blog
+
+for docker
+docker exec -it postgres_db psql -U bloguser -d blog
+
+
+\dt // check if there are any table
+\d table // check the table
+
+
+uv add "psycopg[binary]"
+
+
+
+uv add alembic // for migrations
+uv run alembic init -t async alembic // to run alembic
+
+on alembic.ini file remove the postgres drive and let it empyt
+on env.py in alembic folder import the configuirations and change the coneccion
+
+uv run alembic revision --autogenerate -m "initial schema" // create a first migration file
+uv run alembic upgrade head // run the migration
+
+uv run alembic current // check the current migration
+
+alembic downgrade -1 // to rollback a migration
+alembic history // show the history of migrations

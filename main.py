@@ -17,7 +17,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import select, func
 
 import models
-from database import Base, engine, get_db
+from database import engine, get_db
 
 from routers import posts, users
 
@@ -26,9 +26,6 @@ from config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create database tables on startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
     yield
     # Shutdown
     await engine.dispose()
