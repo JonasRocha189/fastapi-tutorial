@@ -128,3 +128,16 @@ create reset token expiration
 
 mailtrap // cloud tool for development mode to use email delivery
 https://mailtrap.io/
+
+
+-----
+
+PostgresSQL and Alembic for migrations
+
+
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=secret postgres // to run on docker
+
+brew install postgresql@18
+
+psql -U postgres -c "CREATE USER bloguser WITH PASSWORD 'blogpass';"
+createdb -U postgres -O bloguser blog
