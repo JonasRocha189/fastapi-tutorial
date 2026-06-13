@@ -167,3 +167,38 @@ uv run alembic current // check the current migration
 
 alembic downgrade -1 // to rollback a migration
 alembic history // show the history of migrations
+
+
+-----
+
+
+AWS S3 and Boto3
+
+uv add boto3
+
+aws_bucket_policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReadProfilePics",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::fastapi-blog-uploads-jonas/profile_pics/*"
+    }
+  ]
+}
+
+
+aws_iam_policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::fastapi-blog-uploads-jonas/profile_pics/*"
+    }
+  ]
+}
