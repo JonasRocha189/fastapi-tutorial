@@ -202,3 +202,27 @@ aws_iam_policy.json
     }
   ]
 }
+
+
+------
+
+Testing
+
+Pytest, Fixtures and Mocking External Services
+
+uv add --dev pytest // install just for development mode
+uv add --dev "moto[s3]" // mock s3 
+
+create folder tests to salve the test files
+
+fastapi has a builtin lib for test
+
+uv run pytest tests // to run the tests
+uv run pytest tests -v // run show more information 
+uv run pytest tests -s // show printable information 
+
+
+Dont use real S3 and database for testing, to test use mock values, to configure this use conftest.py
+
+
+docker compose exec db createdb -U bloguser -O bloguser test_blog // create a database for test
