@@ -226,3 +226,20 @@ Dont use real S3 and database for testing, to test use mock values, to configure
 
 
 docker compose exec db createdb -U bloguser -O bloguser test_blog // create a database for test
+
+------
+
+Deploying to a VPS
+
+healthcheck the database
+
+Create a healthcheck on main.py
+
+Configure a VPS platform
+
+check the vps_step.txt with a checklist with all needed to configure the vps
+
+
+create a non root user
+
+create a SSH coneccion
